@@ -44,7 +44,7 @@ function broadcast(socket, data, isBinary) {
     }
   });
 }
-//function to relay signals to player
+//function to relay signals from player back to all cameras
 signal.on('connection', function connection(ws, req) {
   ws.id = uuid.v4();
   let match
@@ -54,8 +54,12 @@ signal.on('connection', function connection(ws, req) {
     console.log("player joined " + ws.id);
   }
   ws.on('message', (data, isBinary) => {
-   console.log("message received from " + ws.id);
-   broadcast(signal, data, isBinary);
+    console.log("message received from " + ws.id);
+    socket.clients.forEach(function each(client) {
+      if (player === client.id && client.readyState === WebSocket.OPEN) {
+        client.send(data, { binary: isBinary });
+      }
+    });
   });
 });
 //set up handling for camera sockets
