@@ -55,7 +55,7 @@ signal.on('connection', function connection(ws, req) {
   }
   ws.on('message', (data, isBinary) => {
     console.log("message received from " + ws.id);
-    socket.clients.forEach(function each(client) {
+    signal.clients.forEach(function each(client) {
       if (player === client.id && client.readyState === WebSocket.OPEN) {
         client.send(data, { binary: isBinary });
       }
