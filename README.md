@@ -17,7 +17,9 @@ The client html/js is still being tested. Check back in a few days and I'll have
 
 ## how do I get round the issue with https / wss requirements?
 
-Bit of a catch-22 here. The getUserMedia() security requirements mean that the camera side will work only in 'secure' contexts such as https:// hosting, while modern browsers typically disable vanilla websockets as soon as they encounter https:// environments. There are several ways round this. I've listed them in order of ascending utility, as I've found it.
+Bit of a catch-22 here. The getUserMedia() security requirements mean that the camera side will work only in 'secure' contexts such as https:// hosting, while modern browsers typically disable vanilla websockets as soon as they encounter https:// environments. If you are hosting a websocket server locally (on a PC or PI without a domain associated with it) then it's a bit of a faff to go the whole hog and install ssl certs to enable secure websockets, although the changes to the server code itself are trivial. 
+
+There are several ways round this. I've listed them in order of ascending utility, as I've found it.
 
 * host a version of 'camera.html' on localhost for whatever devices are using it. (Localhost will run getUserMedia() even without https connection.)
 * using Chrome, manually add whatever IP is hosting camera.html as an 'insecure origin treated as secure' using the method described [here] (https://stackoverflow.com/questions/40144036/javascript-getusermedia-using-chrome-with-localhost-without-https).
