@@ -3,7 +3,7 @@
 
 *Simplest possible implementation of a browser to browser low latency webcam using getUserMedia, mediaRecorder, and websockets*
 
-This is a work in progress. As designed, it will work only on the same LAN; however, if you're prepared to upgrade to secure websockets (wss) and set up appropriate port forwarding / ssl for the websocket server it can be made to work over the web.
+This is a work in progress. As designed, it will work only to pass video between clients on the same LAN (eg as a home webcam); however, if you're prepared to upgrade to secure websockets (wss) and set up appropriate port forwarding / ssl for the websocket server it can be made to work over the web.
 
 ## how to set up
 
@@ -15,5 +15,14 @@ If that's too complicated, and you just want to hard-code the server IP into the
 
 The client html/js is still being tested. Check back in a few days and I'll have it all up.
 
+## how do I get round the issue with https / wss requirements?
+
+Bit of a catch-22 here. The getUserMedia() security requirements mean that the camera side will work only in 'secure' contexts such as https:// hosting, while modern browsers typically disable vanilla websockets as soon as they encounter https:// environments. There are several ways round this. I've listed them in order of ascending utility, as I've found it.
+
+* host a version of 'camera.html' on localhost for whatever devices are using it. (Localhost will run getUserMedia() even without https connection.)
+* using Chrome, manually add whatever IP is hosting camera.html as an 'insecure origin treated as secure' using the method described [here] (https://stackoverflow.com/questions/40144036/javascript-getusermedia-using-chrome-with-localhost-without-https).
+* using Firefox, you can manually set a flag to allow it to run vanilla websockets even in secure https:// contexts. The method is [here](https://www.damirscorner.com/blog/posts/20210528-AllowingInsecureWebsocketConnections.html). Note that the flag is missing in the mobile version but you can access it via the 'nightly' (developer) version of Firefox mobile which is available from the app store.
+
 ## latency
-Latency is really hard work to deal with. Delays in stream processing accumulate over time and the media element insists on playing every single blob. There's a system included here to manage that, but any/all better solutions are gratefully received!
+
+Latency is really hard work to deal with. Delays in stream processing accumulate over time and the media element insists on playing every single blob. There's a system included here to manage that by sending a signal back to pause broadcast from all cameras any time it looks like the player buffers are getting overloaded, but any/all better solutions are gratefully received!
