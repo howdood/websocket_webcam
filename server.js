@@ -7,7 +7,7 @@ function getIP() {
   var ipaddr = ip.address();
   console.log(ipaddr);
   //now post it to google apps
-  const Url = 'PUT URL OF YOUR WEB APP DEPLOYMENT HERE';
+  const Url = 'PUT URL OF YOUR WEB APP IP SERVER DEPLOYMENT HERE';
   var data = {
     addr: ipaddr
   };
@@ -41,10 +41,12 @@ function broadcast(socket, data, isBinary) {
   socket.clients.forEach(function each(client) {
     if (player === client.id && client.readyState === WebSocket.OPEN) {
       client.send(data, { binary: isBinary });
+//      console.log(data);
+//      console.log(typeof data);
     }
   });
 }
-//function to relay signals from player back to all cameras
+//function to relay latency signals back from player to connected cameras
 signal.on('connection', function connection(ws, req) {
   ws.id = uuid.v4();
   let match
@@ -56,7 +58,7 @@ signal.on('connection', function connection(ws, req) {
   ws.on('message', (data, isBinary) => {
     console.log("message received from " + ws.id);
     signal.clients.forEach(function each(client) {
-      if (player === client.id && client.readyState === WebSocket.OPEN) {
+      if (player !== client.id && client.readyState === WebSocket.OPEN) {
         client.send(data, { binary: isBinary });
       }
     });
@@ -64,6 +66,8 @@ signal.on('connection', function connection(ws, req) {
 });
 //set up handling for camera sockets
 camera1.on('connection', (ws, req) => {
+  //setup the buffer check
+//  setInterval(bufferCheck, 1000, ws);
   //give new contact an id
   ws.id = uuid.v4();
   //if it's a player, give it the unique player id
@@ -198,3 +202,8 @@ camera4.on('connection', (ws, req) => {
     //do nothing
   });
 });
+
+//function to deal with buffer overruns at server side
+function bufferCheck(socket) {
+  console.log(socket.bufferedAmount);
+}
