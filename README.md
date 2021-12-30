@@ -29,6 +29,6 @@ There are several ways round this. I've listed them in order of ascending utilit
 
 Latency is really hard work to deal with. Delays in stream processing accumulate over time and the media element insists on playing every single blob. There's a system included here to manage that by sending a signal back to pause broadcast from all cameras any time it looks like the player buffers are getting overloaded, which works fine as long as the packets are kept big (and hence sent less often). There's also a mechanism (commented out in the 'camera' file as-is) which enables regular pausing of the camera system to enable delayed players to catch up - at the cost of potential stutter for any players which are up to date.
 
-Note that the /theoretical/ minimum latency is set by the length of time before the media recorder outputs its first blob. However, smaller blobs come more often and require more processing power at both websocket and receiver. In the field, larger blob sizes have been found to provide lower perceived latency despite raising the theoretical latency floor. 
+Note that the *theoretical* minimum latency is set by the length of time before the media recorder outputs its first blob. However, smaller blobs come more often and require more processing power at both websocket and receiver. In the field, larger blob sizes have been found to provide lower perceived latency despite raising the theoretical latency floor. 
 
 Any/all better solutions are gratefully received!
