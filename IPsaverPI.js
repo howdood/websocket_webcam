@@ -1,6 +1,7 @@
 //run this under Google Apps Script to provide a remote host for your server's local IP address 
 function doPost(e) {
   var cache = CacheService.getScriptCache();
+
   if (e) {
     var json = JSON.parse(e.postData.contents);
     if(json.addr) {
@@ -18,9 +19,7 @@ function doPost(e) {
       //send back the current IP
       var ipaddr = cache.get("ipCache");
       return ContentService
-      .createTextOutput(JSON.stringify({
-      "ip": ipaddr
-      }))
+      .createTextOutput(JSON.stringify({"ip": ipaddr}))
     .setMimeType(ContentService.MimeType.JSON);
     }
   } else {
@@ -28,5 +27,14 @@ function doPost(e) {
     //send back the current IP
     var ipaddr = cache.get("ipCache");
     Logger.log(ipaddr);
+
   }
 }
+function doGet() {
+  var cache = CacheService.getScriptCache();
+  var ipaddr = cache.get("ipCache");
+  return ContentService
+    .createTextOutput(ipaddr)
+    .setMimeType(ContentService.MimeType.TEXT);
+}
+
