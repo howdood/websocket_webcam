@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Player</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        .fullscreen {
+            width: 100vw;
+            height: auto;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .topleft {
+            width: auto;
+            height: 50vh;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .topright {
+            width: auto;
+            height: 50vh;
+            position: absolute;
+            left: 75vh;
+            top: 0;
+        }
+
+        .bottomleft {
+            width: auto;
+            height: 50vh;
+            position: absolute;
+            left: 0;
+            top: 50vh;
+        }
+
+        .bottomright {
+            width: auto;
+            height: 50vh;
+            position: absolute;
+            left: 75vh;
+            top: 50vh;
+        }
+    </style>
+</head>
+
+<body>
+    <video id="returnPlayer1" class="topleft" autoplay muted></video>
+    <video id="returnPlayer2" class="topright" autoplay muted></video>
+    <video id="returnPlayer3" class="bottomleft" autoplay muted></video>
+    <video id="returnPlayer4" class="bottomright" autoplay muted></video>
+    <script type="text/javascript">
+        'use strict'
+        //const player = document.querySelector("#player");
+        const returnPlayer1 = document.querySelector("#returnPlayer1");
+        const returnPlayer2 = document.querySelector("#returnPlayer2");
+        const returnPlayer3 = document.querySelector("#returnPlayer3");
+        const returnPlayer4 = document.querySelector("#returnPlayer4");
+        const socket1 = "8882";
+        const socket2 = "8884";
+        const socket3 = "8886";
+        const socket4 = "8888";
+        var queue1 = [];
+        var queue2 = [];
+        var queue3 = [];
+        var queue4 = [];
+        var signalws;
+        var ws1;
+        var ws2;
+        var ws3;
+        var ws4;
+        var returnMediaSource1;
+        var returnMediaSource2;
+        var returnMediaSource3;
+        var returnMediaSource4;
+        var errorHandled = false;
+        //variables to log whether all media sources are ready to go by counting how many have been readied
+        var openSources = 0;
+        const packetSize = 64; //faster => lower theoretical latency but more processing pressure. 42 seems fastest on test setup but mess with it.
+        // limited range of codecs are supported. This one works.
+        const mimeCodec = "video/webm;codecs=vp8";
+        //const mimeCodec = "video/webm";
+        //sleep function for use when resetting
+        function sleep(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            }
+        //start off by trying to get IP from google script
+        const Url = ''; //add your web app deployment address here. Or skip it and use a fixed IP for the websocket server.
+        var ip = "192.168.0.9"; //set default IP. If this will remain fixed, edit here, skip the fetch() request and just call navigator.mediaDevices directly (line 33 below)
+        fetch(Url)
+            .then(response => response.text())
+            .then(data => {
+                ip = data;
+                console.log("Websocket ip address is " + ip);
+                console.log("opening signal channel...");
+                openSignals();
+            })
+            .catch(error => { console.log(error) });
+        function openSignals() {
+            signalws = new WebSocket("ws://" + ip + ":8880/player/");
+            signalws.addEventListener("open", (e) => {
+                console.log("Signalling webSocket open. Now calling players", e);
+                openDataSockets();
+            });
+        }
+        async function openDataSockets() {
+            //stop any currently running data streams before (re)connecting
+            signalws.send("stop");
+            await sleep(396); // give the socket server time to settle just in case we're resetting after a failure
+            ws1 = new WebSocket("ws://" + ip + ":" + socket1 + "/player/");
+            ws1.addEventListener("open", (e) => {
+                console.log("Data webSocket open on socket " + socket1, e);
+                receive(ws1, returnPlayer1, returnMediaSource1, queue1);
+            });
+            ws2 = new WebSocket("ws://" + ip + ":" + socket2 + "/player/");
+            ws2.addEventListener("open", (e) => {
+                console.log("Data webSocket open on socket " + socket2, e);
+                receive(ws2, returnPlayer2, returnMediaSource2, queue2);
+            });
+            ws3 = new WebSocket("ws://" + ip + ":" + socket3 + "/player/");
+            ws3.addEventListener("open", (e) => {
+                console.log("Data webSocket open on socket " + socket3, e);
+                receive(ws3, returnPlayer3, returnMediaSource3, queue3);
+            });
+            ws4 = new WebSocket("ws://" + ip + ":" + socket4 + "/player/");
+            ws4.addEventListener("open", (e) => {
+                console.log("Data webSocket open on socket " + socket4, e);
+                receive(ws4, returnPlayer4, returnMediaSource4, queue4);
+            });
+        }
+        function receive(ws, returnPlayer, returnMediaSource, queue) {
+            //add an error handler as it stops playing if the object.error != null
+            returnPlayer.onerror = async function () {
+                //returnPlayer.pause();
+                console.log(
+                    "Error " +
+                    returnPlayer.error.code +
+                    "; details: " +
+                    returnPlayer.error.message
+                );
+                //try resetting all connections
+                openSignals();
+            };
+            returnMediaSource = new MediaSource();
+            let RMSurl = URL.createObjectURL(returnMediaSource);
+            returnPlayer.src = RMSurl;
+            //don't do anything until the source opens
+            returnMediaSource.addEventListener("sourceopen", sourceOpen);
+            function sourceOpen() {
+                //second option here can be 'segments' or 'sequence';
+                var returnSourceBuffer = returnMediaSource.addSourceBuffer(mimeCodec);
+                returnSourceBuffer.mode = "sequence";
+                //returnSourceBuffer.mode = 'segments'; this seems to lead to more latency. Don't use
+                //console.log(returnSourceBuffer.mode);
+                returnSourceBuffer.addEventListener("updateend", async function () {
+                    // Push queue 
+                    while (queue.length > 0 && !returnSourceBuffer.updating) {
+                        returnSourceBuffer.appendBuffer(queue.shift());
+                    }
+                });
+                //send the message out to start the camera recording if this is the last socket to need opening
+
+                openSources = ++openSources;
+                console.log(returnMediaSource.readyState + " " + openSources);
+                if (openSources > 3) {
+                    errorHandled = false;
+                    console.log("Sending start signal back to cameras");
+                    signalws.send("start");
+                }
+                //}
+                ws.onmessage = async function (event) {
+                    var vidBuff = await event.data.arrayBuffer();
+                    queue.push(vidBuff);
+                    try {
+                        var wait = queue.length + returnSourceBuffer.buffered.length;
+                    } catch (e) {
+                        //this is where it throws an error if the returnSourceBuffer has been deleted following a bad chunk
+                        //we need to reset the player and restart the camera(s)
+                        //but only if that process hasn't already started, so we check
+                        if (!errorHandled) {
+                            errorHandled = true;
+                            console.log("resetting player because of", e);
+                            signalws.send("stop");
+                            ws1.close();
+                            ws2.close();
+                            ws3.close();
+                            ws4.close();
+                            openSources = 0;
+                            openDataSockets();
+                            return false;
+                        }
+                    }
+                    while (queue.length > 0 && !returnSourceBuffer.updating && !errorHandled) {
+
+                        await returnSourceBuffer.appendBuffer(queue.shift());
+
+
+                    }
+                    //Send a slowdown signal if latency is growing
+                    if (wait > 2) {
+                        var msg = (wait * packetSize);
+                        console.log(msg);
+                        signalws.send(msg);
+                    }
+                };
+            }
+            return true;
+        }
+    </script>
+</body>
