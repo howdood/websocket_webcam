@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Camera 1</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        #returnPlayer::-internal-media-controls {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <video id="player" height="360" autoplay></video>
+    <script type="text/javascript">
+        'use strict'
+        const player = document.querySelector("#player");
+        const returnPlayer = document.querySelector("#returnPlayer");
+        //setup socket port depending on #1 #2 #3 etc in window address - eg camera.html#4 will cause this to use the 'camera4' websocket.
+        var sendSocket = "8882"; //default socket for camera 1
+        var splut = location.href.split("#");
+        if (splut[1]) {
+            switch (splut[1]) {
+                case "2":
+                    sendSocket = "8884";
+                    break;
+                case "3":
+                    sendSocket = "8886";
+                    break;
+                case "4":
+                    sendSocket = "8888";
+                    break;
+                default:
+                    break;
+            }
+        }
+        var queue = [];
+        var ws;
+        var ws2;
+        var signalws;
+        var videoStream;
+        var signalws2;
+        const packetSize = 64; //faster => lower latency but more processing time. 8 seems fastest on test setup but mess with it.
+        // limited range of codecs are supported. This one works.
+        const mimeCodec = "video/webm;codecs=vp8";
+        //const mimeCodec = "video/webm";
+        //start off by trying to get IP from google script
+        const Url = ''; //edit with your webapp deployment address unless using fixed IP
+        var ip = "192.168.0.9"; //set default IP. If this will remain fixed, edit here, skip the fetch() request and just call navigator.mediaDevices directly (line 33 below)
+        //try to lock the screen to landscape for mobiles
+        if (navigator.userAgent.match(/(android|iphone)/gi)) {
+            window.screen.orientation
+                .lock("landscape")
+                .then(
+                    success => console.log(success),
+                    failure => console.log(failure)
+                )
+        }
+        fetch(Url)
+            .then(response => response.text())
+            .then(data => {
+                ip = data;
+                console.log("ip address is " + ip);
+                const idealAspect = (6/4);
+                navigator.mediaDevices
+                    .getUserMedia({
+                        audio: false,
+                        video: {
+                            frameRate: { ideal: 25, max: 30 },
+                            facingMode: 'environment', //change this to 'user' to prefer user-facing camera on mobiles
+                            latency: 0.0001, //we live in hope 
+                            aspectRatio: idealAspect //will need to be changed if using portrait mode
+                        }
+                    })
+                    .then(gotMedia);
+            })
+            .catch(error => { console.log(error) });
+
+        const gotMedia = function (stream) {
+            videoStream = new MediaStream(stream.getVideoTracks());
+            var frameRate = videoStream.getVideoTracks()[0].getSettings().frameRate;
+            console.log(frameRate);
+
+            player.srcObject = videoStream;
+            capture();
+            //now call the receiver
+            console.log("capture called");
+            //receive();
+            //console.log("receive called");
+        };
+
+        async function capture() {
+            let mediaRecorder = new MediaRecorder(videoStream, {
+                mimeType: mimeCodec,
+            });
+            ws = new WebSocket("ws://" + ip + ":" + sendSocket + "/");
+            signalws = new WebSocket("ws://" + ip + ":8880/");
+            //ws.binaryType = "arraybuffer";
+            ws.addEventListener("open", (e) => {
+                console.log("WebSocket Open at socket " + "ws://" + ip + ":" + sendSocket + "/", e);
+                mediaRecorder.addEventListener("dataavailable", (e) => {
+                    ws.send(e.data);
+                });
+                //mediaRecorder.addEventListener('stop', ws.close.bind(ws));
+                //originally started recorder here, but better to wait until player sends signal
+                //mediaRecorder.start(packetSize); // Start recording, and dump data by interval specified in brackets if present
+                chillOut(chillLength); // chill once at start to give the receiver a fighting chance
+
+            });
+            var chillLength = 24; // we fix growing latency caused by queue buffer processing time on the receive end by briefly stopping the source here. Adjust this number to your own network context.
+            var chillInterval = 6000; //how often to chill for. Shorter than this can mess with your core processing.
+            function sleep(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            }
+            async function chillOut(time) {
+                if (mediaRecorder.state === "recording") {
+                    console.log("Chilling for " + time);
+                    await mediaRecorder.stop();
+                    await sleep(time);
+                    mediaRecorder.start(packetSize);
+                }
+
+            }
+            //this builds in regular stops to enable the player and websocket delivery to catch up
+            //if you find latency builds gradually over time you may need to implement this
+            //setInterval(chillOut, chillInterval, chillLength);
+            //this listens for messages starting the player or telling it to chill
+            signalws.addEventListener('message', async (msg) =>  {
+                console.log(msg);
+                if (msg.data === "stop") {
+                    console.log("received stop message");
+                    if (mediaRecorder.state === "recording") {
+                        mediaRecorder.stop();
+                    }
+                } else if (msg.data === "start") {
+                    console.log("received start message");
+                    if (mediaRecorder.state === "recording") {
+                        mediaRecorder.stop();
+                    }
+                    await mediaRecorder.start(1); // send a minimal packet (with header info) to give the player the best chance to get going
+                    //nb this is a latency hack.
+                    await mediaRecorder.stop();
+                    await mediaRecorder.start(packetSize); // Start recording, and dump data by interval specified in brackets if present
+                    //this is where we slow down broadcast
+                } else if (mediaRecorder.state === "recording") {
+                    chillOut(Number(msg.data));
+                    console.log("Called to chill for " + msg.data);
+                }
+            });
+            ws.addEventListener("close", (e) => {
+                console.log("WebSocket Close", e);
+                mediaRecorder.stop();
+            });
+            return true;
+        }
+    </script>
+</body>
