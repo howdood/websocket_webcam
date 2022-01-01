@@ -3,17 +3,17 @@
 
 *Simplest possible implementation of a browser to browser low latency webcam using getUserMedia, mediaRecorder, and websockets*
 
-This is a work in progress. As designed, it will work only to pass video between clients on the same LAN (eg as a home webcam); however, if you're prepared to upgrade to secure websockets (wss) and set up appropriate port forwarding / ssl for the websocket server it can be made to work over the web.
+As designed, this will work only to pass video between clients on the same LAN (eg as a home webcam); however, if you're prepared to upgrade to secure websockets (wss) and set up appropriate port forwarding / ssl for the websocket server it can be made to work over the web.
+
+## what's the use case?
+
+I've developed this to enable use of old smartphone cameras as live streaming video sources, simply because everyone seems to have a lot of them lying around and it's less of an irritation to use them than to buy extra webcams and R-Pis to stream direct.
 
 ## how to set up
 
-The server.js file should run under node.js (for example on a Pi using PM2 to keep it alive). You can see its dependencies in the 'includes' list at the start of the file. To connect to it the browser player and cameras need to know its internal IP. This can be achieved by setting a static IP for the server host in your router, or (as done here) using a third-party application to store the IP for access from the browser clients. In this implementation that's done by deploying a Google apps script file. My example is also here for reference (IPsaverPI.js) - if you want to copy this approach you will need to deploy that as a web app and copy the deployment url into line 10 of the server.js file. 
+The server.js file should run under node.js (for example on a Pi using PM2 to keep it alive). This has one signalling channel per camera, and another which serves to send messsages back from the 'player' client to cameras. You can see the server's dependencies in the 'includes' list at the start of the file. To connect to it the browser player and cameras need to know its internal IP. This can be achieved by setting a static IP for the server host in your router, or (as done here) using a third-party application to store the IP for access from the browser clients. In this implementation that's done by deploying a Google apps script file. My example is also here for reference (IPsaverPI.js) - if you want to copy this approach you will need to deploy that as a web app and copy the deployment url into line 10 of the server.js file, as well as into 'camera' and 'player'. 
 
 If that's too complicated, and you just want to hard-code the server IP into the web clients, you can skip the Apps Script deployment and remove lines 6-29 (inclusive) from server.js. Doing that also means the system will run on a LAN with no external web access.
-
-## missing a few files?
-
-The client html/js is still being tested. Check back in a few days and I'll have it all up.
 
 ## how do I get round the issue with https / wss requirements?
 
@@ -32,3 +32,7 @@ Latency is really hard work to deal with. Delays in stream processing accumulate
 Note that the *theoretical* minimum latency is set by the length of time before the media recorder outputs its first blob. However, smaller blobs come more often and require more processing power at both websocket and receiver. In the field, larger blob sizes have been found to provide lower perceived latency despite raising the theoretical latency floor. 
 
 Any/all better solutions are gratefully received!
+
+## memory
+
+This seems to be an issue still - the longer the sites are open, the more memory they hog. If that's a coding error rather than an issue with the 'experimental' nature of getUserMedia(), please let me know...
