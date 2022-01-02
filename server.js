@@ -86,12 +86,19 @@ camera1.on('connection', (ws, req) => {
       console.log(nonPlayers);
     }
   });
-  //if there is already a nonPlayer registered, reject the connection
+  //if there is already a nonPlayer registered, close the other connection(s)
   if ( !(match = req.url.match(/^\/player\/(.*)$/)) && nonPlayers > 1 ) {
-    ws.terminate(); // No match, reject the connection.
-    console.log("connection rejected");
-    return;
-  }
+    //old way
+    //ws.terminate(); // No match, reject the new connection.
+    //new way - terminate older connections
+    var terminated = 0;
+    camera1.clients.forEach((client, index) => {
+      if (terminated < (nonPlayers - 1)) {
+        client.terminate();
+        terminated++;
+      }
+    });
+    }
   //set up message handling
   ws.on('message', (msg, isBinary) => {
     broadcast(camera1, msg, isBinary);
@@ -120,12 +127,19 @@ camera2.on('connection', (ws, req) => {
       console.log(nonPlayers);
     }
   });
-  //if there is already a nonPlayer registered, reject the connection
+  //if there is already a nonPlayer registered, close the other connection(s)
   if ( !(match = req.url.match(/^\/player\/(.*)$/)) && nonPlayers > 1 ) {
-    ws.terminate(); // No match, reject the connection.
-    console.log("connection rejected");
-    return;
-  }
+    //old way
+    //ws.terminate(); // No match, reject the new connection.
+    //new way - terminate older connections
+    var terminated = 0;
+    camera2.clients.forEach((client, index) => {
+      if (terminated < (nonPlayers - 1)) {
+        client.terminate();
+        terminated++;
+      }
+    });
+    }
   //set up message handling
   ws.on('message', (msg, isBinary) => {
     broadcast(camera2, msg, isBinary);
@@ -154,12 +168,19 @@ camera3.on('connection', (ws, req) => {
       console.log(nonPlayers);
     }
   });
-  //if there is already a nonPlayer registered, reject the connection
+  //if there is already a nonPlayer registered, close the other connection(s)
   if ( !(match = req.url.match(/^\/player\/(.*)$/)) && nonPlayers > 1 ) {
-    ws.terminate(); // No match, reject the connection.
-    console.log("connection rejected");
-    return;
-  }
+    //old way
+    //ws.terminate(); // No match, reject the new connection.
+    //new way - terminate older connections
+    var terminated = 0;
+    camera3.clients.forEach((client, index) => {
+      if (terminated < (nonPlayers - 1)) {
+        client.terminate();
+        terminated++;
+      }
+    });
+    }
   //set up message handling
   ws.on('message', (msg, isBinary) => {
     broadcast(camera3, msg, isBinary);
@@ -188,12 +209,19 @@ camera4.on('connection', (ws, req) => {
       console.log(nonPlayers);
     }
   });
-  //if there is already a nonPlayer registered, reject the connection
+  //if there is already a nonPlayer registered, close the other connection(s)
   if ( !(match = req.url.match(/^\/player\/(.*)$/)) && nonPlayers > 1 ) {
-    ws.terminate(); // No match, reject the connection.
-    console.log("connection rejected");
-    return;
-  }
+    //old way
+    //ws.terminate(); // No match, reject the new connection.
+    //new way - terminate older connections
+    var terminated = 0;
+    camera1.clients.forEach((client, index) => {
+      if (terminated < (nonPlayers - 1)) {
+        client.terminate();
+        terminated++;
+      }
+    });
+    }
   //set up message handling
   ws.on('message', (msg, isBinary) => {
     broadcast(camera4, msg, isBinary);
@@ -207,3 +235,4 @@ camera4.on('connection', (ws, req) => {
 function bufferCheck(socket) {
   console.log(socket.bufferedAmount);
 }
+
